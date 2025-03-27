@@ -50,3 +50,9 @@ h3 {
   pointer-events: none; /* Ensures logo doesn't interfere with interactions */
   z-index: 10;
 }
+
+
+h1, h2, h3 {
+  text-align: right;
+  margin-right: 10%;
+}
