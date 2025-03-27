@@ -1,19 +1,22 @@
+/* Base Styles */
 body {
   background-color: #f2f3f6;
   margin: 0;
-  padding: 100px 0 0 0; /* Use padding if you want top spacing */
+  padding: 100px 20px 20px 20px; /* top padding added; side padding instead of pushing content offscreen */
   font-family: "Helvetica Neue", sans-serif;
 }
 
 /* Headings */
 h1 {
-  text-decoration: none;
+  font-family: "Helvetica Neue", sans-serif;
   font-size: 11pt;
-  font-weight: 400;
+  font-weight: 400; /* Use numeric values without px */
+  text-decoration: none; /* Removed conflicting underline */
 }
 
 h2 {
   text-align: left;
+  font-family: "Helvetica Neue", sans-serif;
   font-size: 11pt;
   font-weight: 400;
   text-decoration: line-through;
@@ -22,6 +25,7 @@ h2 {
 
 h3 {
   margin-top: 100px;
+  font-family: "Helvetica Neue", sans-serif;
   font-size: 11pt;
   font-weight: 400;
 }
@@ -33,16 +37,16 @@ h3 {
   left: 0;
   width: 100vw;
   height: 100vh;
-  z-index: -1; /* Behind content */
+  z-index: -1; /* Places it behind other elements */
 }
 
-/* Floating 3D Ball Logo */
+/* 3D Logo Container */
 #logo-container {
   position: fixed;
   top: 20px;
   right: 20px;
   width: 150px;
   height: 150px;
-  pointer-events: none;
-  z-index: 10; /* Make sure it's above the particle canvas */
+  pointer-events: none; /* Ensures logo doesn't interfere with interactions */
+  z-index: 10;
 }
