@@ -1,88 +1,105 @@
-// Make sure Three.js is included as an external dependency
 
-// --- Scene Setup ---
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 1, 5000);
-camera.position.set(0, 0, 600);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
 
-// Handle window resizing
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+// Get the canvas and its 2D context
+const canvas = document.getElementById('particle-canvas');
+const ctx = canvas.getContext('2d');
+
+// Resize the canvas to fill the window
+function setCanvasSize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', setCanvasSize);
+setCanvasSize();
 
 // --- Double Helix Parameters ---
-const R = 100;                         // Helix radius
-const pitch = 20;                      // How far along z per radian
-const totalAngle = 8 * Math.PI;         // Total angular span (8π = 4 full turns)
-const baseZ = (totalAngle * pitch) / 2;  // Centering the helix along z
-const rotationSpeed = 0.0005;          // Radians per millisecond
+// Focal length for perspective projection (lower value => stronger effect)
+const focalLength = 600;
+// Helix radius (distance from center)
+const R = 100;
+// Pitch: how far (in z) the spiral advances per radian of rotation
+const pitch = 10;
+// Total angular extent for each particle's journey (in radians)
+// (e.g., 8*π corresponds to 4 full turns)
+const totalAngle = 5 * Math.PI;
+// Base z offset to center the helix along the z-axis
+const baseZ = (totalAngle * pitch) / 2;
+// Rotation speed: how fast particles move along the helix (radians per ms)
+const rotationSpeed = 0.0002;
 
-// --- Particle Setup ---
-const particlesPerStrand = 200;
-const totalParticles = particlesPerStrand * 2;
-const positions = new Float32Array(totalParticles * 3);
-const angles = new Float32Array(totalParticles); // Store each particle's angle
-const strands = new Uint8Array(totalParticles);    // 0 or 1 for the two strands
-
-// Initialize particle data
-for (let i = 0; i < totalParticles; i++) {
-  // For each strand, set a random starting angle along the helix
-  angles[i] = Math.random() * totalAngle;
-  // Alternate strands: first half 0, second half 1 (or alternate for more mix)
-  strands[i] = i % 2; 
+// --- Particle Class for the Double Helix ---
+class Particle {
+  constructor(strand) {
+    // Each particle belongs to one of two strands (0 or 1)
+    this.strand = strand;
+    // Initialize with a random angle along the helix
+    this.angle = Math.random() * totalAngle;
+  }
+  
+  // Update the particle's position along the helix based on elapsed time
+  update(deltaTime) {
+    this.angle += rotationSpeed * deltaTime;
+    // Loop back when a particle reaches the end of the helix
+    if (this.angle > totalAngle) {
+      this.angle -= totalAngle;
+    }
+  }
+  
+  // Draw the particle using a 3D perspective projection
+  draw() {
+    // For the double helix, add a 180° offset (PI radians) for one of the strands
+    const actualAngle = this.angle + (this.strand === 1 ? Math.PI : 0);
+    // Calculate the 3D coordinates:
+    // x and y positions come from the helix circle
+    const x3d = R * Math.cos(actualAngle);
+    const y3d = R * Math.sin(actualAngle);
+    // z position progresses along the helix
+    const z3d = this.angle * pitch - baseZ;
+    
+    // Perspective projection: particles nearer (lower z) appear larger
+    const scale = focalLength / (focalLength + z3d);
+    const screenX = canvas.width / 2 + x3d * scale;
+    const screenY = canvas.height / 2 + y3d * scale;
+    
+    // Set a base size (you can adjust as desired)
+    const drawSize = 3 * scale;
+    
+    // Change the color if you like:
+    // Here we use a constant color (e.g., a shade of blue), but you can change it.
+    ctx.fillStyle = `rgba(0, 102, 204, ${Math.min(1, scale)})`;
+    
+    ctx.beginPath();
+    ctx.arc(screenX, screenY, drawSize, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
-// Create BufferGeometry and Points
-const geometry = new THREE.BufferGeometry();
-geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+// Create a set of particles forming the double helix
+const particles = [];
+// Total particles per strand (total particles will be double this number)
+const particlesPerStrand = 200;
+for (let i = 0; i < particlesPerStrand; i++) {
+  // Alternate strands: one for strand 0 and one for strand 1
+  particles.push(new Particle(0));
+  particles.push(new Particle(1));
+}
 
-const material = new THREE.PointsMaterial({
-  size: 4,
-  color: 0x0099cc,
-  transparent: true,
-  opacity: 0.8
-});
-
-const points = new THREE.Points(geometry, material);
-scene.add(points);
-
-// --- Animation Loop ---
+// Animation loop
 let lastTime = performance.now();
 function animate(currentTime) {
   const deltaTime = currentTime - lastTime;
   lastTime = currentTime;
   
-  // Update each particle's angle and compute its new 3D position
-  for (let i = 0; i < totalParticles; i++) {
-    // Increment the angle over time
-    angles[i] += rotationSpeed * deltaTime;
-    if (angles[i] > totalAngle) angles[i] -= totalAngle;
-    
-    // For one strand add a 180° offset
-    const actualAngle = angles[i] + (strands[i] === 1 ? Math.PI : 0);
-    // Calculate 3D coordinates of the helix
-    const x = R * Math.cos(actualAngle);
-    const y = R * Math.sin(actualAngle);
-    const z = angles[i] * pitch - baseZ;
-    
-    positions[i * 3]     = x;
-    positions[i * 3 + 1] = y;
-    positions[i * 3 + 2] = z;
-  }
+  // Clear the canvas for the new frame
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Inform Three.js that positions have updated
-  geometry.attributes.position.needsUpdate = true;
+  // Update and draw each particle
+  particles.forEach(particle => {
+    particle.update(deltaTime);
+    particle.draw();
+  });
   
-  // Slowly rotate the whole scene for an extra 3D effect
-  scene.rotation.y += 0.001;
-  
-  renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);
