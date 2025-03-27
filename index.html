@@ -8,20 +8,24 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <!-- 3D Logo container -->
     <div id="logo-container"></div>
-  
-    <!-- Three.js Library -->
+    
+    <!-- Particle canvas (positioned behind content via z-index) -->
+    <canvas id="particle-canvas"></canvas>  
+
+    <!-- Visible content -->
+    <h1>jinho yang</h1>
+    <h2>engineer/designer and a producer working at the intersection of emerging media x computational design.</h2>
+    <h3>I explore post-human futures as a creative producer working with emerging media.</h3>
+
+    <!-- Three.js Libraries and Post-Processing Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r150/three.min.js"></script>
-    <!-- Post-processing for bloom effect -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/postprocessing/EffectComposer.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/postprocessing/RenderPass.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/postprocessing/UnrealBloomPass.js"></script>
     
-    <h1>jinho yang</h1>
-    <h2> engineer/designer and a producer working at the intersection of emerging media x computational design. <h2>
-    <h3> I explore post-human futures as a creative producer working with emerging media. </h3>
-
-    <canvas id="particle-canvas"></canvas>  
+    <!-- Your custom JavaScript file -->
     <script src="index.js"></script>
   </body>
 </html>
