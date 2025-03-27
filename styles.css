@@ -2,13 +2,14 @@
 body {
   background-color: #f2f3f6;
   margin: 0;
+  margin-right: 20%
   padding: 100px 20px 20px 20px; /* top padding added; side padding instead of pushing content offscreen */
   font-family: "Helvetica Neue", sans-serif;
 }
 
 /* Headings */
 h1 {
-  font-family: "Helvetica Neue", sans-serif;
+  font-family: "Helvetica", sans-serif;
   font-size: 11pt;
   font-weight: 400; /* Use numeric values without px */
   text-decoration: none; /* Removed conflicting underline */
@@ -16,7 +17,7 @@ h1 {
 
 h2 {
   text-align: left;
-  font-family: "Helvetica Neue", sans-serif;
+  font-family: "Helvetica", sans-serif;
   font-size: 11pt;
   font-weight: 400;
   text-decoration: line-through;
@@ -25,7 +26,7 @@ h2 {
 
 h3 {
   margin-top: 100px;
-  font-family: "Helvetica Neue", sans-serif;
+  font-family: "Helvetica", sans-serif;
   font-size: 11pt;
   font-weight: 400;
 }
