@@ -12,7 +12,6 @@ body {
 h1 {
   font-family: "Helvetica", sans-serif;
   font-size: 11pt;
-  font-weight: 400; /* Use numeric values without px */
   text-decoration: none; /* Removed conflicting underline */
 }
 
@@ -20,7 +19,6 @@ h2 {
   text-align: left;
   font-family: "Helvetica", sans-serif;
   font-size: 11pt;
-  font-weight: 400;
   text-decoration: line-through;
   text-decoration-color: yellowgreen;
 }
@@ -29,7 +27,6 @@ h3 {
   margin-top: 100px;
   font-family: "Helvetica", sans-serif;
   font-size: 11pt;
-  font-weight: 400;
 }
 
 /* Fullscreen Particle Canvas */
