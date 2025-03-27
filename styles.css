@@ -50,6 +50,3 @@ h3 {
   pointer-events: none; /* Ensures the logo doesn't interfere with page interactions */
 }
 
-canvas {
-  display: block;
-}
