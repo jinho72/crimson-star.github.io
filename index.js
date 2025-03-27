@@ -1,4 +1,54 @@
+ // Setup Scene, Camera, and Renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+    camera.position.z = 3;
 
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(150, 150);
+    document.getElementById('logo-container').appendChild(renderer.domElement);
+
+    // Create a sphere geometry
+    const geometry = new THREE.SphereGeometry(1, 64, 64);
+    const textureLoader = new THREE.TextureLoader();
+    // Replace the URL with your custom monochrome texture if desired
+    const texture = textureLoader.load('https://threejsfundamentals.org/threejs/resources/images/checker.png');
+
+    const material = new THREE.MeshStandardMaterial({
+      map: texture,
+      color: 0xffffff,
+      roughness: 0.5,
+      metalness: 0.1,
+    });
+
+    const sphere = new THREE.Mesh(geometry, material);
+    scene.add(sphere);
+
+    // Add lights for a soft glowing effect
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+    const pointLight = new THREE.PointLight(0xffffff, 0.8);
+    pointLight.position.set(5, 5, 5);
+    scene.add(pointLight);
+
+    // Set up post-processing for bloom (glow)
+    const renderScene = new THREE.RenderPass(scene, camera);
+    const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(150, 150), 1.5, 0.4, 0.85);
+    bloomPass.threshold = 0;
+    bloomPass.strength = 1.5;
+    bloomPass.radius = 0;
+    
+    const composer = new THREE.EffectComposer(renderer);
+    composer.setSize(150, 150);
+    composer.addPass(renderScene);
+    composer.addPass(bloomPass);
+
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      sphere.rotation.y += 0.005;
+      composer.render();
+    }
+    animate();
 
 
 // Get the canvas and its 2D context
