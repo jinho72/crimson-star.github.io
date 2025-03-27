@@ -38,3 +38,25 @@ h3 {
   height: 100vh;
   z-index: -1; /* Places it behind your other elements */
 }
+
+
+
+
+
+body {
+  margin: 0;
+  overflow: hidden;
+}
+
+#logo-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 150px;
+  height: 150px;
+  pointer-events: none; /* Ensures the logo doesn't interfere with page interactions */
+}
+
+canvas {
+  display: block;
+}
