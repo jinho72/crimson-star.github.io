@@ -13,76 +13,64 @@ setCanvasSize();
 // Perspective settings for the 3D projection
 const focalLength = 200; // Adjusts the strength of the perspective
 
-// Define a flow field that produces a swirling (divergence‑free) x–y motion,
-// with a small time‑varying offset and an independent z oscillation.
-function getFlowVector(x, y, z, t) {
-  // Calculate the distance from the origin (avoid division by zero)
-  let r = Math.sqrt(x * x + y * y) + 0.0001;
-  // Create a swirling (rotational) flow that is divergence‑free:
-  // These values cause particles to circulate around the center.
-  let vx = -y / r * 1.5;
-  let vy =  x / r * 1.5;
-  
-  // Add a small time‑varying offset to break uniform rotation
-  vx += Math.sin(t * 0.0005) * 0.5;
-  vy += Math.cos(t * 0.0005) * 0.5;
-  
-  // For z, use a sine oscillation that produces free movement in depth
-  const vz = Math.sin(z * 0.01 + t * 0.0003) * 1.5;
-  
-  return { vx, vy, vz };
-}
-
-// Particle class: each particle exists in 3D space and flows according to the flow field.
+// Particle class: each particle will converge onto a 3D sphere target and then rotate slowly.
 class Particle {
   constructor() {
-    this.reset();
-    this.size = Math.random() * 3 + 1; // Base size
-  }
-  
-  // Reset the particle to a random position within a 3D volume
-  reset() {
-    // x and y are set in a coordinate system centered at 0
+    // Start with a random scattered position
     this.x = (Math.random() - 0.5) * canvas.width;
     this.y = (Math.random() - 0.5) * canvas.height;
-    // z defines depth: negative values bring it forward; positive values push it back
-    this.z = Math.random() * 1100 - 200; // Range: [-200, 900]
+    this.z = (Math.random() - 0.5) * 1000; // spread in depth
+
+    // Set a target position on a sphere using spherical coordinates
+    const R = 300; // sphere radius
+    const theta = Math.acos(2 * Math.random() - 1); // polar angle
+    const phi = Math.random() * Math.PI * 2;          // azimuthal angle
+    // Use cube-root distribution for a uniform density within the sphere
+    const r = R * Math.cbrt(Math.random());
+    this.targetX = r * Math.sin(theta) * Math.cos(phi);
+    this.targetY = r * Math.sin(theta) * Math.sin(phi);
+    this.targetZ = r * Math.cos(theta);
+    
+    this.size = Math.random() * 3 + 1; // Base size for drawing
   }
   
-  // Update the particle's position using the flow field.
   update(t) {
-    const flow = getFlowVector(this.x, this.y, this.z, t);
-    this.x += flow.vx;
-    this.y += flow.vy;
-    this.z += flow.vz;
+    // Compute the vector from current position to target
+    const dx = this.targetX - this.x;
+    const dy = this.targetY - this.y;
+    const dz = this.targetZ - this.z;
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
     
-    // Determine when the particle goes out of bounds and reset it
-    const margin = 50;
-    const scale = focalLength / (focalLength + this.z);
-    const screenX = this.x * scale + canvas.width / 2;
-    const screenY = this.y * scale + canvas.height / 2;
+    // Speed factor for convergence (adjust as needed)
+    const convergeSpeed = 0.02;
     
-    if (
-      screenX < -margin ||
-      screenX > canvas.width + margin ||
-      screenY < -margin ||
-      screenY > canvas.height + margin ||
-      this.z < -100 ||
-      this.z > 1000
-    ) {
-      this.reset();
+    if (distance > 1) {
+      // Particle is still converging: move a fraction toward its target
+      this.x += dx * convergeSpeed;
+      this.y += dy * convergeSpeed;
+      this.z += dz * convergeSpeed;
+    } else {
+      // Once the particle is near its target, apply a slow rotation about the Y-axis.
+      // Compute a small rotation angle (using time t, scaled appropriately)
+      const angle = 0.001 * t; // Adjust this factor to change rotation speed
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
+      const xOld = this.x;
+      // Rotate the (x, z) coordinates around Y
+      this.x = xOld * cosA - this.z * sinA;
+      this.z = xOld * sinA + this.z * cosA;
     }
   }
   
-  // Draw the particle using a radial gradient to simulate a 3D textured dot
   draw() {
+    // Perspective projection: scale based on z depth
     const scale = focalLength / (focalLength + this.z);
     const screenX = this.x * scale + canvas.width / 2;
     const screenY = this.y * scale + canvas.height / 2;
     const drawSize = this.size * scale;
     const opacity = Math.min(1, scale);
     
-    // Create a radial gradient for a textured 3D look
+    // Create a radial gradient for a 3D-textured dot
     const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, drawSize);
     gradient.addColorStop(0, `rgba(0, 0, 0, ${opacity})`);           // Bright center
     gradient.addColorStop(0.5, `rgba(50, 50, 50, ${opacity * 0.8})`);  // Smooth mid-tone
@@ -109,8 +97,10 @@ initParticles();
 
 // Animation loop: update and draw all particles.
 function animate(t) {
+  // Clear the entire canvas each frame
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
+  // Update and draw each particle
   particlesArray.forEach(particle => {
     particle.update(t);
     particle.draw();
@@ -119,6 +109,7 @@ function animate(t) {
   requestAnimationFrame(animate);
 }
 
+requestAnimationFrame(animate);
 requestAnimationFrame(animate);
 
     /* ===================== 3D Ball Logo ===================== */
