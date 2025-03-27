@@ -29,3 +29,13 @@ h3 {
   font-size: 11pt;
   font-weight: 100px;
 }
+
+/* Make the canvas cover the full viewport */
+#particle-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1; /* Places it behind your other elements */
+}
