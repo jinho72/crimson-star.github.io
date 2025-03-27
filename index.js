@@ -1,252 +1,88 @@
-const canvasSketch = require("canvas-sketch");
+// Make sure Three.js is included as an external dependency
 
-// Import ThreeJS and assign it to global scope
-// This way examples/ folder can use it too
-const THREE = require("three");
-global.THREE = THREE;
+// --- Scene Setup ---
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 1, 5000);
+camera.position.set(0, 0, 600);
 
-// Import extra THREE plugins
-require("three/examples/js/controls/OrbitControls");
-require("three/examples/js/geometries/RoundedBoxGeometry.js");
-require("three/examples/js/loaders/GLTFLoader.js");
-require("three/examples/js/loaders/RGBELoader.js");
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
 
-const Stats = require("stats-js");
-const { GUI } = require("dat.gui");
+// Handle window resizing
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
-const settings = {
-  animate: true,
-  context: "webgl",
-  resizeCanvas: false,
-};
+// --- Double Helix Parameters ---
+const R = 100;                         // Helix radius
+const pitch = 20;                      // How far along z per radian
+const totalAngle = 8 * Math.PI;         // Total angular span (8π = 4 full turns)
+const baseZ = (totalAngle * pitch) / 2;  // Centering the helix along z
+const rotationSpeed = 0.0005;          // Radians per millisecond
 
-const sketch = ({ context, canvas }) => {
-  const stats = new Stats();
-  document.body.appendChild(stats.dom);
-  const gui = new GUI();
+// --- Particle Setup ---
+const particlesPerStrand = 200;
+const totalParticles = particlesPerStrand * 2;
+const positions = new Float32Array(totalParticles * 3);
+const angles = new Float32Array(totalParticles); // Store each particle's angle
+const strands = new Uint8Array(totalParticles);    // 0 or 1 for the two strands
 
-  const options = {
-    enableSwoopingCamera: false,
-    enableRotation: true,
-    transmission: 1,
-    thickness: 1.2,
-    roughness: 0.6,
-    envMapIntensity: 1.5,
-    clearcoat: 1,
-    clearcoatRoughness: 0.1,
-    normalScale: 1,
-    clearcoatNormalScale: 0.3,
-    normalRepeat: 1,
-  };
+// Initialize particle data
+for (let i = 0; i < totalParticles; i++) {
+  // For each strand, set a random starting angle along the helix
+  angles[i] = Math.random() * totalAngle;
+  // Alternate strands: first half 0, second half 1 (or alternate for more mix)
+  strands[i] = i % 2; 
+}
 
-  // Setup
-  // -----
+// Create BufferGeometry and Points
+const geometry = new THREE.BufferGeometry();
+geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-  const renderer = new THREE.WebGLRenderer({
-    context,
-    antialias: false,
-  });
-  renderer.setClearColor(0x1f1e1c, 1);
+const material = new THREE.PointsMaterial({
+  size: 4,
+  color: 0x0099cc,
+  transparent: true,
+  opacity: 0.8
+});
 
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
-  camera.position.set(0, 0, 5);
+const points = new THREE.Points(geometry, material);
+scene.add(points);
 
-  const controls = new THREE.OrbitControls(camera, canvas);
-  controls.enabled = !options.enableSwoopingCamera;
-
-  const scene = new THREE.Scene();
-
-  // Content
-  // -------
-
-  const textureLoader = new THREE.TextureLoader();
-
-  const bgTexture = textureLoader.load("src/texture.jpg");
-  const bgGeometry = new THREE.PlaneGeometry(5, 5);
-  const bgMaterial = new THREE.MeshBasicMaterial({ map: bgTexture });
-  const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
-  bgMesh.position.set(0, 0, -1);
-  scene.add(bgMesh);
-
-  const positions = [
-    [-0.85, 0.85, 0],
-    [0.85, 0.85, 0],
-    [-0.85, -0.85, 0],
-    [0.85, -0.85, 0],
-  ];
-
-  const geometries = [
-    new THREE.IcosahedronGeometry(0.75, 0), // Faceted
-    new THREE.IcosahedronGeometry(0.67, 24), // Sphere
-    new THREE.RoundedBoxGeometry(1.12, 1.12, 1.12, 16, 0.2),
-  ];
-
-  const hdrEquirect = new THREE.RGBELoader().load(
-    "src/empty_warehouse_01_2k.hdr",
-    () => {
-      hdrEquirect.mapping = THREE.EquirectangularReflectionMapping;
-    }
-  );
-
-  const normalMapTexture = textureLoader.load("src/normal.jpg");
-  normalMapTexture.wrapS = THREE.RepeatWrapping;
-  normalMapTexture.wrapT = THREE.RepeatWrapping;
-  normalMapTexture.repeat.set(options.normalRepeat, options.normalRepeat);
-
-  const material = new THREE.MeshPhysicalMaterial({
-    transmission: options.transmission,
-    thickness: options.thickness,
-    roughness: options.roughness,
-    envMap: hdrEquirect,
-    envMapIntensity: options.envMapIntensity,
-    clearcoat: options.clearcoat,
-    clearcoatRoughness: options.clearcoatRoughness,
-    normalScale: new THREE.Vector2(options.normalScale),
-    normalMap: normalMapTexture,
-    clearcoatNormalMap: normalMapTexture,
-    clearcoatNormalScale: new THREE.Vector2(options.clearcoatNormalScale),
-  });
-
-  const meshes = geometries.map(
-    (geometry) => new THREE.Mesh(geometry, material)
-  );
-
-  meshes.forEach((mesh, i) => {
-    scene.add(mesh);
-    mesh.position.set(...positions[i]);
-  });
-
-  // Add dragon GLTF model
-  new THREE.GLTFLoader().load("src/dragon.glb", (gltf) => {
-    const dragon = gltf.scene.children.find((mesh) => mesh.name === "Dragon");
-
-    // Just copy the geometry from the loaded model
-    const geometry = dragon.geometry.clone();
-
-    // Adjust geometry to suit our scene
-    geometry.rotateX(Math.PI / 2);
-    geometry.translate(0, -4, 0);
-
-    // Create a new mesh and place it in the scene
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(...positions[3]);
-    mesh.scale.set(0.135, 0.135, 0.135);
-    meshes.push(mesh);
-    scene.add(mesh);
-
-    // Discard the model
-    dragon.geometry.dispose();
-    dragon.material.dispose();
-  });
-
-  // GUI
-  // ---
-
-  gui.add(options, "enableSwoopingCamera").onChange((val) => {
-    controls.enabled = !val;
-    controls.reset();
-  });
-
-  gui.add(options, "enableRotation").onChange(() => {
-    meshes.forEach((mesh) => mesh.rotation.set(0, 0, 0));
-  });
-
-  gui.add(options, "transmission", 0, 1, 0.01).onChange((val) => {
-    material.transmission = val;
-  });
-
-  gui.add(options, "thickness", 0, 5, 0.1).onChange((val) => {
-    material.thickness = val;
-  });
-
-  gui.add(options, "roughness", 0, 1, 0.01).onChange((val) => {
-    material.roughness = val;
-  });
-
-  gui.add(options, "envMapIntensity", 0, 3, 0.1).onChange((val) => {
-    material.envMapIntensity = val;
-  });
-
-  gui.add(options, "clearcoat", 0, 1, 0.01).onChange((val) => {
-    material.clearcoat = val;
-  });
-
-  gui.add(options, "clearcoatRoughness", 0, 1, 0.01).onChange((val) => {
-    material.clearcoatRoughness = val;
-  });
-
-  gui.add(options, "normalScale", 0, 5, 0.01).onChange((val) => {
-    material.normalScale.set(val, val);
-  });
-
-  gui.add(options, "clearcoatNormalScale", 0, 5, 0.01).onChange((val) => {
-    material.clearcoatNormalScale.set(val, val);
-  });
-
-  gui.add(options, "normalRepeat", 1, 4, 1).onChange((val) => {
-    normalMapTexture.repeat.set(val, val);
-  });
-
-  // Update
-  // ------
-
-  const update = (time, deltaTime) => {
-    const ROTATE_TIME = 10; // Time in seconds for a full rotation
-    const xAxis = new THREE.Vector3(1, 0, 0);
-    const yAxis = new THREE.Vector3(0, 1, 0);
-    const rotateX = (deltaTime / ROTATE_TIME) * Math.PI * 2;
-    const rotateY = (deltaTime / ROTATE_TIME) * Math.PI * 2;
-
-    if (options.enableRotation) {
-      meshes.forEach((mesh) => {
-        mesh.rotateOnWorldAxis(xAxis, rotateX);
-        mesh.rotateOnWorldAxis(yAxis, rotateY);
-      });
-    }
-
-    if (options.enableSwoopingCamera) {
-      camera.position.x = Math.sin((time / 10) * Math.PI * 2) * 2;
-      camera.position.y = Math.cos((time / 10) * Math.PI * 2) * 2;
-      camera.position.z = 4;
-      camera.lookAt(scene.position);
-    }
-  };
-
-  // Lifecycle
-  // ---------
-
-  return {
-    resize({ canvas, pixelRatio, viewportWidth, viewportHeight }) {
-      const dpr = Math.min(pixelRatio, 2); // Cap DPR scaling to 2x
-
-      canvas.width = viewportWidth * dpr;
-      canvas.height = viewportHeight * dpr;
-      canvas.style.width = viewportWidth + "px";
-      canvas.style.height = viewportHeight + "px";
-
-      renderer.setPixelRatio(dpr);
-      renderer.setSize(viewportWidth, viewportHeight);
-
-      camera.aspect = viewportWidth / viewportHeight;
-      camera.updateProjectionMatrix();
-    },
-    render({ time, deltaTime }) {
-      stats.begin();
-      controls.update();
-      update(time, deltaTime);
-      renderer.render(scene, camera);
-      stats.end();
-    },
-    unload() {
-      geometries.forEach((geometry) => geometry.dispose());
-      material.dispose();
-      hdrEquirect.dispose();
-      controls.dispose();
-      renderer.dispose();
-      gui.destroy();
-      document.body.removeChild(stats.dom);
-    },
-  };
-};
-
-canvasSketch(sketch, settings);
+// --- Animation Loop ---
+let lastTime = performance.now();
+function animate(currentTime) {
+  const deltaTime = currentTime - lastTime;
+  lastTime = currentTime;
+  
+  // Update each particle's angle and compute its new 3D position
+  for (let i = 0; i < totalParticles; i++) {
+    // Increment the angle over time
+    angles[i] += rotationSpeed * deltaTime;
+    if (angles[i] > totalAngle) angles[i] -= totalAngle;
+    
+    // For one strand add a 180° offset
+    const actualAngle = angles[i] + (strands[i] === 1 ? Math.PI : 0);
+    // Calculate 3D coordinates of the helix
+    const x = R * Math.cos(actualAngle);
+    const y = R * Math.sin(actualAngle);
+    const z = angles[i] * pitch - baseZ;
+    
+    positions[i * 3]     = x;
+    positions[i * 3 + 1] = y;
+    positions[i * 3 + 2] = z;
+  }
+  
+  // Inform Three.js that positions have updated
+  geometry.attributes.position.needsUpdate = true;
+  
+  // Slowly rotate the whole scene for an extra 3D effect
+  scene.rotation.y += 0.001;
+  
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
