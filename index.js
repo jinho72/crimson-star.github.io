@@ -14,56 +14,99 @@ setCanvasSize();
 const focalLength = 300; // Adjust for a tighter or looser perspective
 
 // Number of particles in the sphere
-const numberOfParticles = 3000;
+const numberOfParticles = 5000;
 // Radius of the sphere
-const sphereRadius = 250;
+const sphereRadius = 300;
 
-// We'll store particles with their base (x, y, z) on the sphere
+// We'll store an array of particle objects
 let particles = [];
 
-// 1) Create particles on the *surface* of a sphere
+// Create particles on the *surface* of a sphere (or near-surface for variety)
 function createParticles() {
   particles = [];
-
   for (let i = 0; i < numberOfParticles; i++) {
-    // Random spherical coordinates
     const theta = Math.acos(2 * Math.random() - 1); // 0 to π
     const phi = Math.random() * 2 * Math.PI; // 0 to 2π
 
-    // Place each particle on the sphere surface
-    const x = sphereRadius * Math.sin(theta) * Math.cos(phi);
-    const y = sphereRadius * Math.sin(theta) * Math.sin(phi);
-    const z = sphereRadius * Math.cos(theta);
+    // Slight variation around the surface
+    const r = sphereRadius * (0.9 + 0.1 * Math.random());
+    const x = r * Math.sin(theta) * Math.cos(phi);
+    const y = r * Math.sin(theta) * Math.sin(phi);
+    const z = r * Math.cos(theta);
 
-    // Store each particle's base position
+    // Each particle keeps its "base" position on the sphere
     particles.push({
       baseX: x,
       baseY: y,
       baseZ: z,
-      size: Math.random() * 2 + 1, // random size
+      x: x,
+      y: y,
+      z: z,
+      size: Math.random() * 2 + 1,
+      // Random lifetime (in ms or frames, whichever you prefer)
+      lifetime: Math.floor(Math.random() * 600 + 300), // 300 to 900 frames
     });
   }
 }
 
-// 2) Update function: rotate around the Y-axis
-function update(t) {
-  // Angle for rotation based on time
-  const angle = 0.0005 * t; // rotation speed around Y
-  const cosA = Math.cos(angle);
-  const sinA = Math.sin(angle);
+// This will store our drifting center of the sphere in 3D
+let sphereCenter = { x: 0, y: 0, z: 0 };
 
-  particles.forEach((p) => {
-    // Rotate the base (x, z) around Y, keep y unchanged
+// Update function: rotate around multiple axes, drift the sphere, handle vanish/respawn
+function update(t) {
+  // Rotation angles based on time
+  const angleY = 0.0005 * t; // rotate around Y
+  const angleX = 0.0003 * t; // rotate around X
+  const cosY = Math.cos(angleY);
+  const sinY = Math.sin(angleY);
+  const cosX = Math.cos(angleX);
+  const sinX = Math.sin(angleX);
+
+  // Drift the center of the sphere in a slow sinusoidal path
+  sphereCenter.x = 100 * Math.sin(t * 0.0001);
+  sphereCenter.y = 50 * Math.cos(t * 0.00015);
+  sphereCenter.z = 0; // Keep Z fixed or add more drift if you want
+
+  // Update each particle
+  particles.forEach((p, index) => {
+    // Decrement lifetime
+    p.lifetime--;
+
+    if (p.lifetime <= 0) {
+      // Respawn this particle at a new random location on the sphere
+      const theta = Math.acos(2 * Math.random() - 1);
+      const phi = Math.random() * 2 * Math.PI;
+      const r = sphereRadius * (0.9 + 0.1 * Math.random());
+      p.baseX = r * Math.sin(theta) * Math.cos(phi);
+      p.baseY = r * Math.sin(theta) * Math.sin(phi);
+      p.baseZ = r * Math.cos(theta);
+      p.size = Math.random() * 2 + 1;
+      p.lifetime = Math.floor(Math.random() * 600 + 300);
+    }
+
+    // Rotate the base (x, y, z) around Y, then around X
     const x0 = p.baseX;
+    const y0 = p.baseY;
     const z0 = p.baseZ;
 
-    p.x = x0 * cosA - z0 * sinA;
-    p.y = p.baseY;
-    p.z = x0 * sinA + z0 * cosA;
+    // 1) Rotate around Y
+    let x1 = x0 * cosY - z0 * sinY;
+    let z1 = x0 * sinY + z0 * cosY;
+    let y1 = y0;
+
+    // 2) Rotate around X
+    let y2 = y1 * cosX - z1 * sinX;
+    let z2 = y1 * sinX + z1 * cosX;
+    let x2 = x1;
+
+    // Update final position, plus drifting center
+    p.x = x2 + sphereCenter.x;
+    p.y = y2 + sphereCenter.y;
+    p.z = z2 + sphereCenter.z;
   });
 }
 
-// 3) Draw each particle with perspective & a radial gradient
+// Draw each particle with perspective & a radial gradient
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -75,27 +118,30 @@ function draw() {
     const size = p.size * scale;
     const opacity = Math.min(1, scale);
 
-    // Radial gradient for a subtle 3D look
-    const gradient = ctx.createRadialGradient(
-      screenX,
-      screenY,
-      0,
-      screenX,
-      screenY,
-      size
-    );
-    gradient.addColorStop(0, `rgba(255, 255, 255, ${opacity})`); // bright center
-    gradient.addColorStop(0.5, `rgba(200, 200, 200, ${opacity * 0.7})`);
-    gradient.addColorStop(1, `rgba(255, 255, 255, 0)`); // fade out at edge
+    // If behind the camera, skip drawing
+    if (p.z > -focalLength) {
+      // Radial gradient for a subtle 3D look
+      const gradient = ctx.createRadialGradient(
+        screenX,
+        screenY,
+        0,
+        screenX,
+        screenY,
+        size
+      );
+      gradient.addColorStop(0, `rgba(255, 255, 255, ${opacity})`); // bright center
+      gradient.addColorStop(0.5, `rgba(200, 200, 200, ${opacity * 0.7})`);
+      gradient.addColorStop(1, `rgba(255, 255, 255, 0)`); // fade out at edge
 
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(screenX, screenY, size, 0, 2 * Math.PI);
-    ctx.fill();
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, size, 0, 2 * Math.PI);
+      ctx.fill();
+    }
   });
 }
 
-// 4) Animation loop
+// Animation loop
 function animate(t) {
   update(t);
   draw();
