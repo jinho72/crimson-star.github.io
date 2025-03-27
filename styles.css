@@ -3,6 +3,7 @@ body {
   background-color: #f2f3f6;
   margin: 0;
   margin-right: 20%
+  margin-left: 80%
   padding: 100px 20px 20px 20px; /* top padding added; side padding instead of pushing content offscreen */
   font-family: "Helvetica Neue", sans-serif;
 }
