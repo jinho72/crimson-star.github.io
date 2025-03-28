@@ -336,7 +336,6 @@ function draw() {
       gradient.addColorStop(1, `rgba(255, 255, 255, 0)`);
       ctx.beginPath();
       ctx.arc(screenX, screenY, size, 0, 2 * Math.PI);
-      ctx.fillStyle = gradient;
       ctx.fill();
     }
   });
