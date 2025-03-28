@@ -86,12 +86,7 @@ h3 {
   z-index: 10;
 }
 
-h1,
-h2,
-h3 {
-  text-align: right;
-  margin-right: 10%;
-}
+
 
 /* Simple styling for the floating menu */
 #menu {
@@ -103,7 +98,6 @@ h3 {
   font-family: sans-serif;
   background: rgba(255, 255, 255, 0.9);
   padding: 10px 20px;
-  border-radius: 5px;
 }
 #menu ul {
   list-style: none;
