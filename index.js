@@ -28,6 +28,7 @@ function getNormalPosition(p, t) {
   const cosX = Math.cos(angleX);
   const sinX = Math.sin(angleX);
 
+  // Rotate the particle's base position
   let x0 = p.baseX,
     y0 = p.baseY,
     z0 = p.baseZ;
@@ -38,6 +39,7 @@ function getNormalPosition(p, t) {
   let z2 = y1 * sinX + z1 * cosX;
   let x2 = x1;
 
+  // Liquid-like flow offsets
   const flowAmp = 10,
     flowFreq = 0.001;
   const flowX = flowAmp * Math.sin(t * flowFreq + p.flowOffsetX);
@@ -75,8 +77,8 @@ let mergeInterval = 10000; // every 10 seconds trigger cycle
 let mergeCycle = {
   state: "normal", // "normal", "merging", "exploding"
   startTime: 0,
-  mergePhase: 1000, // duration of merge phase
-  explosionPhase: 1500, // duration of explosion phase
+  mergePhase: 1000, // merge phase duration
+  explosionPhase: 1500, // explosion phase duration
 };
 let lastMergeTime = 0;
 
@@ -85,27 +87,32 @@ let sphereCenter = { x: 0, y: 0, z: 0 };
 // Global shape state: "sphere" or "infinite"
 let currentShape = "sphere";
 
+// Global expansion factor for hover interaction
+let expansionFactor = 1.0; // normally 1; expands when hovered
+const targetExpansion = 1.5; // expand to 1.5 times when hovered
+const expansionSpeed = 0.05; // rate of change per frame
+
 // ===============================
-//   MOUSE & MENU INTERACTION (if needed)
+//   MOUSE & MENU INTERACTION
 // ===============================
 let isHovered = false;
-const menu = document.getElementById("menu") || null;
+const menu = document.getElementById("menu");
+
+// Update hover state based on mouse position relative to sphere center on screen
 canvas.addEventListener("mousemove", (e) => {
+  // Get mouse position relative to canvas
   const rect = canvas.getBoundingClientRect();
   const mouseX = e.clientX - rect.left;
   const mouseY = e.clientY - rect.top;
+  // Compute sphere center's screen coordinates (assume sphereCenter.z is 0 for this calculation)
   const centerScreenX = sphereCenter.x + canvas.width / 2;
   const centerScreenY = sphereCenter.y + canvas.height / 2;
   const dx = mouseX - centerScreenX;
   const dy = mouseY - centerScreenY;
   const distance = Math.sqrt(dx * dx + dy * dy);
+  // If mouse is within 150 pixels of the sphere center, consider it hovered.
   isHovered = distance < 150;
 });
-
-// Global expansion for hover (if using interactive expansion)
-let expansionFactor = 50.0;
-const targetExpansion = 1.5;
-const expansionSpeed = 0.05;
 
 // ===============================
 //   PARTICLE CREATION
@@ -114,13 +121,7 @@ let particles = [];
 function createParticles() {
   particles = [];
   for (let i = 0; i < numberOfParticles; i++) {
-    // Bias sphere sampling so that more particles appear near the poles.
-    // Instead of: const theta = Math.acos(2 * Math.random() - 1);
-    let u = Math.random();
-    let c = 2 * u - 1;
-    const alpha = 2; // increase alpha for stronger bias toward poles
-    c = c >= 0 ? Math.pow(c, 1 / alpha) : -Math.pow(-c, 1 / alpha);
-    const theta = Math.acos(c);
+    const theta = Math.acos(2 * Math.random() - 1);
     const phi = Math.random() * 2 * Math.PI;
     const r = sphereRadius * (0.9 + 0.1 * Math.random());
     const x = r * Math.sin(theta) * Math.cos(phi);
@@ -134,7 +135,7 @@ function createParticles() {
       y: y,
       z: z,
       size: Math.random() * 2 + 1,
-      flowOffsetX: Math.random() * 7000,
+      flowOffsetX: Math.random() * 1000,
       flowOffsetY: Math.random() * 1000,
       flowOffsetZ: Math.random() * 1000,
       mergeOrigin: { x: x, y: y, z: z },
@@ -145,15 +146,13 @@ function createParticles() {
 }
 createParticles();
 
-// When setting base positions for the "sphere" shape, use the biased theta as well.
+// ===============================
+//   SHAPE MORPHING FUNCTIONS
+// ===============================
 function setBasePositionsForShape(shape) {
   if (shape === "sphere") {
     for (let i = 0; i < particles.length; i++) {
-      let u = Math.random();
-      let c = 2 * u - 1;
-      const alpha = 2;
-      c = c >= 0 ? Math.pow(c, 1 / alpha) : -Math.pow(-c, 1 / alpha);
-      const theta = Math.acos(c);
+      const theta = Math.acos(2 * Math.random() - 1);
       const phi = Math.random() * 2 * Math.PI;
       const r = sphereRadius * (0.9 + 0.1 * Math.random());
       particles[i].baseX = r * Math.sin(theta) * Math.cos(phi);
@@ -161,7 +160,7 @@ function setBasePositionsForShape(shape) {
       particles[i].baseZ = r * Math.cos(theta);
     }
   } else if (shape === "infinite") {
-    const a = 50;
+    const a = 50; // size of loop
     const tubeRadius = 20;
     for (let i = 0; i < particles.length; i++) {
       const tParam = Math.random() * 2 * Math.PI;
@@ -188,6 +187,7 @@ function normalUpdate(t) {
   const cosX = Math.cos(angleX),
     sinX = Math.sin(angleX);
 
+  // Update the drifting sphere center (merge point)
   sphereCenter.x = 100 * Math.sin(t * 0.0001);
   sphereCenter.y = 50 * Math.cos(t * 0.00015);
   sphereCenter.z = 0;
@@ -274,6 +274,7 @@ function update(t) {
     if (progress === 1) {
       mergeCycle.state = "normal";
       lastMergeTime = t;
+      // Alternate base shape upon explosion:
       if (currentShape === "sphere") {
         currentShape = "infinite";
         setBasePositionsForShape("infinite");
@@ -285,20 +286,24 @@ function update(t) {
     }
   }
 
-  // INTERACTIVE EXPANSION (HOVER)
+  // ------------------------------
+  //  INTERACTIVE EXPANSION (HOVER)
+  // ------------------------------
+  // Update expansionFactor: if hovered, target is targetExpansion; else 1.
   if (isHovered) {
     expansionFactor += (targetExpansion - expansionFactor) * expansionSpeed;
   } else {
     expansionFactor += (1 - expansionFactor) * expansionSpeed;
   }
-  if (menu) {
-    const centerScreenX = sphereCenter.x + canvas.width / 2;
-    const centerScreenY = sphereCenter.y + canvas.height / 2;
-    menu.style.transform = `translate(${centerScreenX - 50}px, ${
-      centerScreenY - 50
-    }px)`;
-    menu.style.opacity = isHovered ? 1 : 0;
-  }
+
+  // Update menu display: position menu at sphere center (screen coords) and fade in/out.
+  const centerScreenX = sphereCenter.x + canvas.width / 2;
+  const centerScreenY = sphereCenter.y + canvas.height / 2;
+  // Smoothly update menu position
+  menu.style.transform = `translate(${centerScreenX - 50}px, ${
+    centerScreenY - 50
+  }px)`;
+  menu.style.opacity = isHovered ? 1 : 0;
 }
 
 // ===============================
@@ -307,6 +312,7 @@ function update(t) {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   particles.forEach((p) => {
+    // Apply expansion: scale particle's offset from sphereCenter by expansionFactor.
     const effX = sphereCenter.x + (p.x - sphereCenter.x) * expansionFactor;
     const effY = sphereCenter.y + (p.y - sphereCenter.y) * expansionFactor;
     const effZ = sphereCenter.z + (p.z - sphereCenter.z) * expansionFactor;
@@ -330,6 +336,7 @@ function draw() {
       gradient.addColorStop(1, `rgba(255, 255, 255, 0)`);
       ctx.beginPath();
       ctx.arc(screenX, screenY, size, 0, 2 * Math.PI);
+      ctx.fillStyle = gradient;
       ctx.fill();
     }
   });
