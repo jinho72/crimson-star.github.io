@@ -1,47 +1,9 @@
-html,
-body {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  background-color: #f2f3f6;
-}
-
-#particle-canvas {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: -1;
-}
-
-/* Simple styling for the floating menu */
-#menu {
-  position: absolute;
-  top: 50px; /* will be updated by JS */
-  left: 50px; /* will be updated by JS */
-  opacity: 0;
-  transition: opacity 0.5s, transform 0.5s;
-  font-family: sans-serif;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 10px 20px;
-  border-radius: 5px;
-}
-#menu ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-#menu li {
-  margin: 5px 0;
-}
-
 /* Base Styles */
 body {
   background-color: #f2f3f6;
   margin: 0;
-  margin-right: 20%;
-  margin-left: 80%;
+  margin-right: 20%
+  margin-left: 80%
   padding: 100px 20px 20px 20px; /* top padding added; side padding instead of pushing content offscreen */
   font-family: -apple-system, BlinkMacSystemFont, "San Francisco";
 }
@@ -88,30 +50,8 @@ h3 {
   z-index: 10;
 }
 
-h1,
-h2,
-h3 {
+
+h1, h2, h3 {
   text-align: right;
   margin-right: 10%;
-}
-
-/* Simple styling for the floating menu */
-#menu {
-  position: absolute;
-  top: 50px; /* will be updated by JS */
-  left: 50px; /* will be updated by JS */
-  opacity: 0;
-  transition: opacity 0.5s, transform 0.5s;
-  font-family: sans-serif;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 10px 20px;
-  border-radius: 5px;
-}
-#menu ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-#menu li {
-  margin: 5px 0;
 }
