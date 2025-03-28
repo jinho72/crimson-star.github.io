@@ -40,7 +40,7 @@ function getNormalPosition(p, t) {
 
   // Liquid-like flow offsets
   const flowAmp = 10,
-    flowFreq = 0.001;
+    flowFreq = 0.003;
   const flowX = flowAmp * Math.sin(t * flowFreq + p.flowOffsetX);
   const flowY = flowAmp * Math.sin(t * flowFreq + p.flowOffsetY);
   const flowZ = flowAmp * Math.sin(t * flowFreq + p.flowOffsetZ);
@@ -251,7 +251,6 @@ function draw() {
       gradient.addColorStop(0, `rgba(255, 255, 255, ${opacity})`);
       gradient.addColorStop(0.5, `rgba(200, 200, 200, ${opacity * 0.7})`);
       gradient.addColorStop(1, `rgba(255, 255, 255, 0)`);
-      ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(screenX, screenY, size, 0, 2 * Math.PI);
       ctx.fill();
