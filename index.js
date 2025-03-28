@@ -66,7 +66,7 @@ setCanvasSize();
 const focalLength = 300;
 
 // Particle and sphere parameters
-const numberOfParticles = 8000;
+const numberOfParticles = 5000;
 const sphereRadius = 100;
 
 // Merge/Explosion timing (milliseconds)
