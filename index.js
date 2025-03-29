@@ -23,12 +23,10 @@ function getPerpendicular(d) {
 function getNormalPosition(p, t) {
   const angleY = 0.0005 * t;
   const angleX = 0.0003 * t;
-  const cosY = Math.cos(angleY);
-  const sinY = Math.sin(angleY);
-  const cosX = Math.cos(angleX);
-  const sinX = Math.sin(angleX);
-
-  // Rotate the particle's base position
+  const cosY = Math.cos(angleY),
+    sinY = Math.sin(angleY);
+  const cosX = Math.cos(angleX),
+    sinX = Math.sin(angleX);
   let x0 = p.baseX,
     y0 = p.baseY,
     z0 = p.baseZ;
@@ -38,14 +36,11 @@ function getNormalPosition(p, t) {
   let y2 = y1 * cosX - z1 * sinX;
   let z2 = y1 * sinX + z1 * cosX;
   let x2 = x1;
-
-  // Liquid-like flow offsets
   const flowAmp = 10,
     flowFreq = 0.001;
   const flowX = flowAmp * Math.sin(t * flowFreq + p.flowOffsetX);
   const flowY = flowAmp * Math.sin(t * flowFreq + p.flowOffsetY);
   const flowZ = flowAmp * Math.sin(t * flowFreq + p.flowOffsetZ);
-
   return {
     x: x2 + sphereCenter.x + flowX,
     y: y2 + sphereCenter.y + flowY,
@@ -64,7 +59,6 @@ function setCanvasSize() {
 }
 window.addEventListener("resize", setCanvasSize);
 setCanvasSize();
-
 const focalLength = 300;
 
 // ===============================
@@ -72,47 +66,83 @@ const focalLength = 300;
 // ===============================
 const numberOfParticles = 5000;
 const sphereRadius = 100;
-
-let mergeInterval = 10000; // every 10 seconds trigger cycle
+let mergeInterval = 10000; // Every 10 seconds trigger cycle
 let mergeCycle = {
   state: "normal", // "normal", "merging", "exploding"
   startTime: 0,
-  mergePhase: 1000, // merge phase duration
-  explosionPhase: 1500, // explosion phase duration
+  mergePhase: 1000, // merge phase duration in ms
+  explosionPhase: 1500, // explosion phase duration in ms
 };
 let lastMergeTime = 0;
-
 let sphereCenter = { x: 0, y: 0, z: 0 };
 
-// Global shape state: "sphere" or "infinite"
+// Global shape state: "sphere" or "stl"
+// (Particles will morph between a sphere and the STL contour shape)
 let currentShape = "sphere";
-
-// Global expansion factor for hover interaction
-let expansionFactor = 1.0; // normally 1; expands when hovered
-const targetExpansion = 1.5; // expand to 1.5 times when hovered
-const expansionSpeed = 0.05; // rate of change per frame
 
 // ===============================
 //   MOUSE & MENU INTERACTION
 // ===============================
 let isHovered = false;
-const menu = document.getElementById("menu");
-
-// Update hover state based on mouse position relative to sphere center on screen
+let mousePos = { x: canvas.width / 2, y: canvas.height / 2 };
+const menu = document.getElementById("menu"); // single menu that follows cursor
 canvas.addEventListener("mousemove", (e) => {
-  // Get mouse position relative to canvas
   const rect = canvas.getBoundingClientRect();
-  const mouseX = e.clientX - rect.left;
-  const mouseY = e.clientY - rect.top;
-  // Compute sphere center's screen coordinates (assume sphereCenter.z is 0 for this calculation)
-  const centerScreenX = sphereCenter.x + canvas.width / 2;
-  const centerScreenY = sphereCenter.y + canvas.height / 2;
-  const dx = mouseX - centerScreenX;
-  const dy = mouseY - centerScreenY;
-  const distance = Math.sqrt(dx * dx + dy * dy);
-  // If mouse is within 150 pixels of the sphere center, consider it hovered.
-  isHovered = distance < 150;
+  mousePos.x = e.clientX - rect.left;
+  mousePos.y = e.clientY - rect.top;
+  isHovered = true;
 });
+canvas.addEventListener("mouseout", () => {
+  isHovered = false;
+});
+
+// ===============================
+//   INTERACTION TARGET ASSIGNMENT (for 1 sphere per menu)
+// ===============================
+const interactionSphereRadius = 30; // radius of the small sphere around the cursor
+function assignInteractionTargets(t) {
+  // Compute the interaction center in world space from the mouse position.
+  let targetCenter = {
+    x: mousePos.x - canvas.width / 2,
+    y: mousePos.y - canvas.height / 2,
+    z: 0,
+  };
+  // For each particle, assign an interaction target that lies on a small sphere
+  // centered at targetCenter. To create organic swirling, each particle uses its own persistent angle.
+  particles.forEach((p) => {
+    if (p.interactionAngle === undefined) {
+      p.interactionAngle = Math.random() * 2 * Math.PI;
+    }
+    p.interactionAngle += 0.01;
+    // Randomize radius slightly
+    let r =
+      interactionSphereRadius + 5 * Math.sin(t * 0.002 + p.interactionAngle);
+    p.interactionTarget = {
+      x: targetCenter.x + r * Math.cos(p.interactionAngle),
+      y: targetCenter.y + r * Math.sin(p.interactionAngle),
+      z: targetCenter.z + 5 * Math.sin(t * 0.003 + p.interactionAngle),
+    };
+  });
+}
+function clearInteractionTargets() {
+  particles.forEach((p) => {
+    p.interactionTarget = null;
+  });
+}
+// Update menu element to follow the cursor.
+function updateMenuPosition() {
+  if (menu) {
+    menu.style.transform = `translate(${mousePos.x}px, ${mousePos.y}px)`;
+    menu.style.opacity = 1;
+  }
+}
+
+// ===============================
+//   GLOBAL EXPANSION (OPTIONAL)
+// ===============================
+let expansionFactor = 1.0;
+const targetExpansion = 1.5;
+const expansionSpeed = 0.05;
 
 // ===============================
 //   PARTICLE CREATION
@@ -121,7 +151,11 @@ let particles = [];
 function createParticles() {
   particles = [];
   for (let i = 0; i < numberOfParticles; i++) {
-    const theta = Math.acos(2 * Math.random() - 1);
+    let u = Math.random();
+    let c = 2 * u - 1;
+    const alpha = 2;
+    c = c >= 0 ? Math.pow(c, 1 / alpha) : -Math.pow(-c, 1 / alpha);
+    const theta = Math.acos(c);
     const phi = Math.random() * 2 * Math.PI;
     const r = sphereRadius * (0.9 + 0.1 * Math.random());
     const x = r * Math.sin(theta) * Math.cos(phi);
@@ -141,37 +175,52 @@ function createParticles() {
       mergeOrigin: { x: x, y: y, z: z },
       curveVec: { x: 0, y: 0, z: 0 },
       curveAmp: 0,
+      interactionTarget: null,
     });
   }
 }
 createParticles();
 
 // ===============================
-//   SHAPE MORPHING FUNCTIONS
+//   SET BASE POSITIONS FOR SHAPES
 // ===============================
+// We now support two shapes: "sphere" and "stl"
+// For "stl", we use an array "stlContourPoints" that must be defined externally.
 function setBasePositionsForShape(shape) {
   if (shape === "sphere") {
     for (let i = 0; i < particles.length; i++) {
-      const theta = Math.acos(2 * Math.random() - 1);
+      let u = Math.random();
+      let c = 2 * u - 1;
+      const alpha = 2;
+      c = c >= 0 ? Math.pow(c, 1 / alpha) : -Math.pow(-c, 1 / alpha);
+      const theta = Math.acos(c);
       const phi = Math.random() * 2 * Math.PI;
       const r = sphereRadius * (0.9 + 0.1 * Math.random());
       particles[i].baseX = r * Math.sin(theta) * Math.cos(phi);
       particles[i].baseY = r * Math.sin(theta) * Math.sin(phi);
       particles[i].baseZ = r * Math.cos(theta);
     }
-  } else if (shape === "infinite") {
-    const a = 50; // size of loop
-    const tubeRadius = 20;
-    for (let i = 0; i < particles.length; i++) {
-      const tParam = Math.random() * 2 * Math.PI;
-      const cx = a * Math.cos(tParam);
-      const cy = a * Math.sin(tParam) * Math.cos(tParam);
-      const cz = 10 * Math.sin(2 * tParam);
-      const offsetAngle = Math.random() * 2 * Math.PI;
-      const offsetR = Math.random() * tubeRadius;
-      particles[i].baseX = cx + offsetR * Math.cos(offsetAngle);
-      particles[i].baseY = cy + offsetR * Math.sin(offsetAngle);
-      particles[i].baseZ = cz + (Math.random() - 0.5) * 10;
+  } else if (shape === "stl") {
+    // Use the precomputed contour points from your STL file.
+    // Ensure stlContourPoints is an array of { x, y, z } objects.
+    if (
+      typeof stlContourPoints !== "undefined" &&
+      stlContourPoints.length > 0
+    ) {
+      const len = stlContourPoints.length;
+      for (let i = 0; i < particles.length; i++) {
+        // Cycle through the contour points if there are fewer than particles.
+        const pt = stlContourPoints[i % len];
+        // Optionally, add a bit of random variation:
+        particles[i].baseX = pt.x + (Math.random() - 0.5) * 5;
+        particles[i].baseY = pt.y + (Math.random() - 0.5) * 5;
+        particles[i].baseZ = pt.z + (Math.random() - 0.5) * 5;
+      }
+    } else {
+      console.warn(
+        "stlContourPoints is not defined or empty. Falling back to sphere."
+      );
+      setBasePositionsForShape("sphere");
     }
   }
 }
@@ -186,12 +235,9 @@ function normalUpdate(t) {
     sinY = Math.sin(angleY);
   const cosX = Math.cos(angleX),
     sinX = Math.sin(angleX);
-
-  // Update the drifting sphere center (merge point)
   sphereCenter.x = 100 * Math.sin(t * 0.0001);
   sphereCenter.y = 50 * Math.cos(t * 0.00015);
   sphereCenter.z = 0;
-
   particles.forEach((p) => {
     let x0 = p.baseX,
       y0 = p.baseY,
@@ -207,7 +253,6 @@ function normalUpdate(t) {
     const flowX = flowAmp * Math.sin(t * flowFreq + p.flowOffsetX);
     const flowY = flowAmp * Math.sin(t * flowFreq + p.flowOffsetY);
     const flowZ = flowAmp * Math.sin(t * flowFreq + p.flowOffsetZ);
-
     p.x = x2 + sphereCenter.x + flowX;
     p.y = y2 + sphereCenter.y + flowY;
     p.z = z2 + sphereCenter.z + flowZ;
@@ -215,13 +260,29 @@ function normalUpdate(t) {
 }
 
 // ===============================
-//   UPDATE FUNCTION (MERGE/EXPLOSION & MORPH)
+//   UPDATE FUNCTION (MERGE/EXPLOSION, MORPH, & INTERACTION)
 // ===============================
 function update(t) {
   sphereCenter.x = 100 * Math.sin(t * 0.0001);
   sphereCenter.y = 50 * Math.cos(t * 0.00015);
   sphereCenter.z = 0;
 
+  // INTERACTIVE MODE:
+  if (isHovered) {
+    // In interactive mode, assign targets so that particles cluster around three separate small spheres.
+    assignInteractionTargets(t);
+    particles.forEach((p) => {
+      p.x = lerp(p.x, p.interactionTarget.x, 0.05);
+      p.y = lerp(p.y, p.interactionTarget.y, 0.05);
+      p.z = lerp(p.z, p.interactionTarget.z, 0.05);
+    });
+    updateMenuPosition();
+    return; // Skip merge/explosion logic when interacting.
+  } else {
+    clearInteractionTargets();
+  }
+
+  // MERGE/EXPLOSION CYCLE:
   if (mergeCycle.state === "normal") {
     normalUpdate(t);
     if (t - lastMergeTime > mergeInterval) {
@@ -274,10 +335,10 @@ function update(t) {
     if (progress === 1) {
       mergeCycle.state = "normal";
       lastMergeTime = t;
-      // Alternate base shape upon explosion:
+      // Alternate between "sphere" and "stl" shapes.
       if (currentShape === "sphere") {
-        currentShape = "infinite";
-        setBasePositionsForShape("infinite");
+        currentShape = "stl";
+        setBasePositionsForShape("stl");
       } else {
         currentShape = "sphere";
         setBasePositionsForShape("sphere");
@@ -285,44 +346,24 @@ function update(t) {
       normalUpdate(t);
     }
   }
-
-  // ------------------------------
-  //  INTERACTIVE EXPANSION (HOVER)
-  // ------------------------------
-  // Update expansionFactor: if hovered, target is targetExpansion; else 1.
-  if (isHovered) {
-    expansionFactor += (targetExpansion - expansionFactor) * expansionSpeed;
-  } else {
-    expansionFactor += (1 - expansionFactor) * expansionSpeed;
+  // Hide menu when not in interactive mode.
+  if (menu) {
+    menu.style.opacity = 0;
   }
-
-  // Update menu display: position menu at sphere center (screen coords) and fade in/out.
-  const centerScreenX = sphereCenter.x + canvas.width / 2;
-  const centerScreenY = sphereCenter.y + canvas.height / 2;
-  // Smoothly update menu position
-  menu.style.transform = `translate(${centerScreenX - 50}px, ${
-    centerScreenY - 50
-  }px)`;
-  menu.style.opacity = isHovered ? 1 : 0;
 }
 
 // ===============================
-//   DRAW FUNCTION (with expansion effect)
+//   DRAW FUNCTION
 // ===============================
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   particles.forEach((p) => {
-    // Apply expansion: scale particle's offset from sphereCenter by expansionFactor.
-    const effX = sphereCenter.x + (p.x - sphereCenter.x) * expansionFactor;
-    const effY = sphereCenter.y + (p.y - sphereCenter.y) * expansionFactor;
-    const effZ = sphereCenter.z + (p.z - sphereCenter.z) * expansionFactor;
-
-    const scale = focalLength / (focalLength + effZ);
-    const screenX = effX * scale + canvas.width / 2;
-    const screenY = effY * scale + canvas.height / 2;
+    const scale = focalLength / (focalLength + p.z);
+    const screenX = p.x * scale + canvas.width / 2;
+    const screenY = p.y * scale + canvas.height / 2;
     const size = p.size * scale;
     const opacity = Math.min(1, scale);
-    if (effZ > -focalLength) {
+    if (p.z > -focalLength) {
       const gradient = ctx.createRadialGradient(
         screenX,
         screenY,
